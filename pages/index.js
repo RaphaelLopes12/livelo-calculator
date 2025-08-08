@@ -316,6 +316,10 @@ const LiveloPointsCalculator = () => {
         filteredOrderNumbers.includes(item.orderNumber)
       );
 
+      const uniqueOrderNumbers = [
+        ...new Set(filteredCalculations.map((item) => item.orderNumber)),
+      ];
+
       return filteredCalculations.reduce(
         (acc, item) => {
           const calc = getSelectedCalculation(item);
@@ -325,6 +329,8 @@ const LiveloPointsCalculator = () => {
             totalPointsCost: acc.totalPointsCost + calc.pointsCost,
             totalNetProfit: acc.totalNetProfit + calc.netProfit,
             totalPoints: acc.totalPoints + calc.totalPoints,
+            totalOrders: uniqueOrderNumbers.length,
+            totalSKUs: filteredCalculations.length,
           };
         },
         {
@@ -337,6 +343,10 @@ const LiveloPointsCalculator = () => {
       );
     }
 
+    const uniqueOrderNumbers = [
+      ...new Set(calculations.map((item) => item.orderNumber)),
+    ];
+
     return calculations.reduce(
       (acc, item) => {
         const calc = getSelectedCalculation(item);
@@ -346,6 +356,8 @@ const LiveloPointsCalculator = () => {
           totalPointsCost: acc.totalPointsCost + calc.pointsCost,
           totalNetProfit: acc.totalNetProfit + calc.netProfit,
           totalPoints: acc.totalPoints + calc.totalPoints,
+          totalOrders: uniqueOrderNumbers.length,
+          totalSKUs: calculations.length,
         };
       },
       {
@@ -697,60 +709,82 @@ const LiveloPointsCalculator = () => {
 
               {/* Summary Cards */}
               {summary && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-                    <p className="text-green-600 text-sm font-medium">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+                  <div className="bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-xl border border-green-200">
+                    <p className="text-green-600 text-xs font-medium mb-1">
                       Total Vendas{" "}
                       {hasActiveFilters() && (
                         <span className="text-xs">(Filtrado)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-green-700">
+                    <p className="text-lg xl:text-xl font-bold text-green-700 leading-tight">
                       {formatCurrency(summary.totalSales)}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200">
-                    <p className="text-red-600 text-sm font-medium">
+                  <div className="bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-xl border border-red-200">
+                    <p className="text-red-600 text-xs font-medium mb-1">
                       Total Custos{" "}
                       {hasActiveFilters() && (
                         <span className="text-xs">(Filtrado)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-red-700">
+                    <p className="text-lg xl:text-xl font-bold text-red-700 leading-tight">
                       {formatCurrency(summary.totalCosts)}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                    <p className="text-purple-600 text-sm font-medium">
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-3 rounded-xl border border-purple-200">
+                    <p className="text-purple-600 text-xs font-medium mb-1">
                       Custo Pontos{" "}
                       {hasActiveFilters() && (
                         <span className="text-xs">(Filtrado)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-purple-700">
+                    <p className="text-lg xl:text-xl font-bold text-purple-700 leading-tight">
                       {formatCurrency(summary.totalPointsCost)}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                    <p className="text-blue-600 text-sm font-medium">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3 rounded-xl border border-blue-200">
+                    <p className="text-blue-600 text-xs font-medium mb-1">
                       Total Pontos{" "}
                       {hasActiveFilters() && (
                         <span className="text-xs">(Filtrado)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-blue-700">
+                    <p className="text-lg xl:text-xl font-bold text-blue-700 leading-tight">
                       {formatNumber(summary.totalPoints)}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-4 rounded-xl border border-indigo-200">
-                    <p className="text-indigo-600 text-sm font-medium">
+                  <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-3 rounded-xl border border-indigo-200">
+                    <p className="text-indigo-600 text-xs font-medium mb-1">
                       Lucro Líquido{" "}
                       {hasActiveFilters() && (
                         <span className="text-xs">(Filtrado)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-indigo-700">
+                    <p className="text-lg xl:text-xl font-bold text-indigo-700 leading-tight">
                       {formatCurrency(summary.totalNetProfit)}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-3 rounded-xl border border-orange-200">
+                    <p className="text-orange-600 text-xs font-medium mb-1">
+                      Total Pedidos{" "}
+                      {hasActiveFilters() && (
+                        <span className="text-xs">(Filtrado)</span>
+                      )}
+                    </p>
+                    <p className="text-lg xl:text-xl font-bold text-orange-700 leading-tight">
+                      {formatNumber(summary.totalOrders)}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-r from-teal-50 to-teal-100 p-3 rounded-xl border border-teal-200">
+                    <p className="text-teal-600 text-xs font-medium mb-1">
+                      Total SKUs{" "}
+                      {hasActiveFilters() && (
+                        <span className="text-xs">(Filtrado)</span>
+                      )}
+                    </p>
+                    <p className="text-lg xl:text-xl font-bold text-teal-700 leading-tight">
+                      {formatNumber(summary.totalSKUs)}
                     </p>
                   </div>
                 </div>
