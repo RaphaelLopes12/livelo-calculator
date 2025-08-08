@@ -9,6 +9,7 @@ import {
   Search,
   Package,
   ShoppingCart,
+  Settings,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -32,6 +33,9 @@ const LiveloPointsCalculator = () => {
   const [showOrdersList, setShowOrdersList] = useState(false);
   const [showSkusList, setShowSkusList] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showConfigTab, setShowConfigTab] = useState(false);
+  const [simplesTax, setSimplesTax] = useState(8.08);
+  const [paymentDiscount, setPaymentDiscount] = useState(7.0);
 
   const ITEMS_PER_PAGE = 10;
   const POINT_COST = 0.0449;
@@ -175,7 +179,11 @@ const LiveloPointsCalculator = () => {
               const totalPoints = saleValue * multiplier * quantity;
               const pointsCost = totalPoints * POINT_COST;
               const grossProfit = (saleValue - costValue) * quantity;
-              const netProfit = grossProfit - pointsCost;
+              const taxAmount = (saleValue * quantity * simplesTax) / 100;
+              const discountAmount =
+                (saleValue * quantity * paymentDiscount) / 100;
+              const netProfit =
+                grossProfit - pointsCost - taxAmount - discountAmount;
               const profitMargin = (netProfit / (saleValue * quantity)) * 100;
 
               return {
@@ -191,7 +199,11 @@ const LiveloPointsCalculator = () => {
               const totalPoints = saleValue * multiplier * quantity;
               const pointsCost = totalPoints * POINT_COST;
               const grossProfit = (saleValue - costValue) * quantity;
-              const netProfit = grossProfit - pointsCost;
+              const taxAmount = (saleValue * quantity * simplesTax) / 100;
+              const discountAmount =
+                (saleValue * quantity * paymentDiscount) / 100;
+              const netProfit =
+                grossProfit - pointsCost - taxAmount - discountAmount;
               const profitMargin = (netProfit / (saleValue * quantity)) * 100;
 
               return {
@@ -246,7 +258,11 @@ const LiveloPointsCalculator = () => {
               const pointsCost = totalPoints * POINT_COST;
               const grossProfit =
                 orderSummary.totalSales - orderSummary.totalCosts;
-              const netProfit = grossProfit - pointsCost;
+              const taxAmount = (orderSummary.totalSales * simplesTax) / 100;
+              const discountAmount =
+                (orderSummary.totalSales * paymentDiscount) / 100;
+              const netProfit =
+                grossProfit - pointsCost - taxAmount - discountAmount;
               const profitMargin = (netProfit / orderSummary.totalSales) * 100;
 
               return {
@@ -263,7 +279,11 @@ const LiveloPointsCalculator = () => {
               const pointsCost = totalPoints * POINT_COST;
               const grossProfit =
                 orderSummary.totalSales - orderSummary.totalCosts;
-              const netProfit = grossProfit - pointsCost;
+              const taxAmount = (orderSummary.totalSales * simplesTax) / 100;
+              const discountAmount =
+                (orderSummary.totalSales * paymentDiscount) / 100;
+              const netProfit =
+                grossProfit - pointsCost - taxAmount - discountAmount;
               const profitMargin = (netProfit / orderSummary.totalSales) * 100;
 
               return {
@@ -285,7 +305,14 @@ const LiveloPointsCalculator = () => {
 
     setCalculations(results);
     setOrderSummaries(orderSummariesArray);
-  }, [vtexData, costData, showCustomInput, customPointsMultiplier]);
+  }, [
+    vtexData,
+    costData,
+    showCustomInput,
+    customPointsMultiplier,
+    simplesTax,
+    paymentDiscount,
+  ]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -866,12 +893,29 @@ const LiveloPointsCalculator = () => {
                 </div>
               )}
 
-              {/* View Toggle */}
+              {/* Configuration Tab */}
               <div className="flex space-x-4 mb-6">
+                <button
+                  onClick={() => {
+                    setShowConfigTab(!showConfigTab);
+                    setShowOrdersList(false);
+                    setShowSkusList(false);
+                  }}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    showConfigTab
+                      ? "bg-green-600 text-white shadow-lg"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <Settings className="h-5 w-5" />
+                  <span>{showConfigTab ? "Fechar" : "Configurações"}</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setShowOrdersList(!showOrdersList);
                     setShowSkusList(false);
+                    setShowConfigTab(false);
                     setCurrentView("orders");
                     setCurrentPage(1);
                   }}
@@ -889,10 +933,12 @@ const LiveloPointsCalculator = () => {
                     Pedidos
                   </span>
                 </button>
+
                 <button
                   onClick={() => {
                     setShowSkusList(!showSkusList);
                     setShowOrdersList(false);
+                    setShowConfigTab(false);
                     setCurrentView("skus");
                     setCurrentPage(1);
                   }}
@@ -909,6 +955,126 @@ const LiveloPointsCalculator = () => {
                   </span>
                 </button>
               </div>
+
+              {/* Configuration Section */}
+              {showConfigTab && (
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mt-6">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center space-x-2">
+                    <Settings className="h-6 w-6 text-green-600" />
+                    <span>Configurações de Cálculo</span>
+                  </h2>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Simples Nacional */}
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                      <label className="block text-blue-800 font-semibold mb-2">
+                        Simples Nacional (%)
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          step="0.01"
+                          value={simplesTax}
+                          onChange={(e) =>
+                            setSimplesTax(parseFloat(e.target.value) || 0)
+                          }
+                          className="border border-blue-300 rounded-lg px-4 py-3 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-32"
+                          placeholder="8.08"
+                        />
+                        <span className="text-blue-700 font-medium">%</span>
+                      </div>
+                      <p className="text-sm text-blue-600 mt-2">
+                        Alíquota do Simples Nacional aplicada sobre vendas
+                      </p>
+                    </div>
+
+                    {/* Desconto Pagamento */}
+                    <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+                      <label className="block text-orange-800 font-semibold mb-2">
+                        Desconto Pagar.me (%)
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          step="0.01"
+                          value={paymentDiscount}
+                          onChange={(e) =>
+                            setPaymentDiscount(parseFloat(e.target.value) || 0)
+                          }
+                          className="border border-orange-300 rounded-lg px-4 py-3 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent w-32"
+                          placeholder="7.0"
+                        />
+                        <span className="text-orange-700 font-medium">%</span>
+                      </div>
+                      <p className="text-sm text-orange-600 mt-2">
+                        Percentual de desconto da operadora de pagamento
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Botão recalcular */}
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={calculatePoints}
+                      disabled={
+                        loading ||
+                        vtexData.length === 0 ||
+                        costData.length === 0
+                      }
+                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+                    >
+                      Recalcular com Novas Configurações
+                    </button>
+                  </div>
+
+                  {/* Resumo dos impostos */}
+                  {summary && (
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-semibold text-gray-800 mb-3">
+                        Resumo dos Impostos:
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">
+                            Simples Nacional ({simplesTax}%):
+                          </span>
+                          <span className="font-semibold text-blue-600 ml-2">
+                            {formatCurrency(
+                              (summary.totalSales * simplesTax) / 100
+                            )}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">
+                            Desconto Pagar.me ({paymentDiscount}%):
+                          </span>
+                          <span className="font-semibold text-orange-600 ml-2">
+                            {formatCurrency(
+                              (summary.totalSales * paymentDiscount) / 100
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <span className="text-gray-600">
+                          Total Impostos/Descontos:
+                        </span>
+                        <span className="font-bold text-red-600 ml-2">
+                          {formatCurrency(
+                            (summary.totalSales *
+                              (simplesTax + paymentDiscount)) /
+                              100
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
