@@ -29,7 +29,11 @@ const LiveloPointsCalculator = () => {
   const [dragOver, setDragOver] = useState({ vtex: false, cost: false });
   const [customPointsMultiplier, setCustomPointsMultiplier] = useState(3);
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [showOrdersList, setShowOrdersList] = useState(false);
+  const [showSkusList, setShowSkusList] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
+  const ITEMS_PER_PAGE = 10;
   const POINT_COST = 0.0449;
 
   const processFile = useCallback(async (file, setDataFunc) => {
@@ -445,6 +449,78 @@ const LiveloPointsCalculator = () => {
   const summary = getTotalSummary();
   const filteredOrders = getFilteredOrders();
 
+  const getPaginatedItems = (items) => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return items.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = (totalItems) => {
+    return Math.ceil(totalItems / ITEMS_PER_PAGE);
+  };
+
+  const renderPagination = (totalItems) => {
+    const totalPages = getTotalPages(totalItems);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t">
+        <div className="text-sm text-gray-700">
+          Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} até{" "}
+          {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} de {totalItems}{" "}
+          itens
+        </div>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Anterior
+          </button>
+
+          {/* Páginas */}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                  currentPage === pageNum
+                    ? "bg-purple-600 text-white"
+                    : "text-gray-500 bg-white border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Próximo
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <Head>
@@ -793,33 +869,51 @@ const LiveloPointsCalculator = () => {
               {/* View Toggle */}
               <div className="flex space-x-4 mb-6">
                 <button
-                  onClick={() => setCurrentView("orders")}
+                  onClick={() => {
+                    setShowOrdersList(!showOrdersList);
+                    setShowSkusList(false);
+                    setCurrentView("orders");
+                    setCurrentPage(1);
+                  }}
                   className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    currentView === "orders"
+                    showOrdersList && currentView === "orders"
                       ? "bg-purple-600 text-white shadow-lg"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  <span>Por Pedido</span>
+                  <span>
+                    {showOrdersList && currentView === "orders"
+                      ? "Ocultar"
+                      : "Ver"}{" "}
+                    Pedidos
+                  </span>
                 </button>
                 <button
-                  onClick={() => setCurrentView("skus")}
+                  onClick={() => {
+                    setShowSkusList(!showSkusList);
+                    setShowOrdersList(false);
+                    setCurrentView("skus");
+                    setCurrentPage(1);
+                  }}
                   className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    currentView === "skus"
+                    showSkusList && currentView === "skus"
                       ? "bg-purple-600 text-white shadow-lg"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   <Package className="h-5 w-5" />
-                  <span>Por SKU</span>
+                  <span>
+                    {showSkusList && currentView === "skus" ? "Ocultar" : "Ver"}{" "}
+                    SKUs
+                  </span>
                 </button>
               </div>
             </div>
           )}
 
           {/* Orders View */}
-          {calculations && currentView === "orders" && (
+          {calculations && showOrdersList && currentView === "orders" && (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col gap-4">
@@ -910,7 +1004,7 @@ const LiveloPointsCalculator = () => {
               </div>
 
               <div className="p-6 space-y-4">
-                {filteredOrders.map((order, index) => {
+                {getPaginatedItems(filteredOrders).map((order, index) => {
                   const orderCalc = getSelectedCalculation(order);
                   return (
                     <div
@@ -1074,11 +1168,12 @@ const LiveloPointsCalculator = () => {
                   );
                 })}
               </div>
+              {renderPagination(filteredOrders.length)}
             </div>
           )}
 
           {/* SKUs View */}
-          {calculations && currentView === "skus" && (
+          {calculations && showSkusList && currentView === "skus" && (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800">
@@ -1138,7 +1233,7 @@ const LiveloPointsCalculator = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {calculations.map((item, index) => {
+                    {getPaginatedItems(calculations).map((item, index) => {
                       const calc = getSelectedCalculation(item);
                       return (
                         <tr
@@ -1212,6 +1307,7 @@ const LiveloPointsCalculator = () => {
                   </tbody>
                 </table>
               </div>
+              {renderPagination(filteredOrders.length)}
             </div>
           )}
 
