@@ -27,9 +27,10 @@ const LiveloPointsCalculator = () => {
   const [endDateFilter, setEndDateFilter] = useState("");
   const [orderSummaries, setOrderSummaries] = useState([]);
   const [dragOver, setDragOver] = useState({ vtex: false, cost: false });
+  const [customPointsMultiplier, setCustomPointsMultiplier] = useState(3);
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
-  const POINT_COST = 0.0449; // R$ por ponto pago à LIVELO
-  const POINTS_OPTIONS = [3, 6, 8, 10];
+  const POINT_COST = 0.0449;
 
   const processFile = useCallback(async (file, setDataFunc) => {
     setLoading(true);
@@ -126,16 +127,11 @@ const LiveloPointsCalculator = () => {
     const orderSummariesTemp = {};
 
     vtexData.forEach((order) => {
-      // Pegar o Order da coluna B
       const orderNumber = order["Order"] || order["order"] || order.Order || "";
-
-      // Pegar o Reference Code da VTEX
       const skuCode =
         order["Reference Code"] ||
         order["reference code"] ||
         order.ReferenceCode;
-
-      // Buscar informações de custo para o SKU usando Reference Code
       const costInfo = costData.find(
         (cost) =>
           cost.SKU === skuCode ||
@@ -144,7 +140,6 @@ const LiveloPointsCalculator = () => {
           cost["sku"] === skuCode
       );
 
-      // Pegar valor da coluna SKU Selling Price
       const sellingPriceRaw =
         order["SKU Selling Price"] ||
         order["sku selling price"] ||
@@ -152,50 +147,58 @@ const LiveloPointsCalculator = () => {
         "";
       const saleValue =
         parseFloat(sellingPriceRaw.toString().replace(",", ".")) || 0;
-
-      // Pegar quantidade
       const quantity = parseFloat(
         order["Quantity_SKU"] || order["quantity_sku"] || order.QuantitySKU || 1
       );
-
-      // Pegar o custo da coluna CUSTO PRODUTO da planilha de custos
       const costValue = parseFloat(
         costInfo?.["CUSTO PRODUTO"] ||
           costInfo?.["custo produto"] ||
           costInfo?.CustoProduto ||
           0
       );
-
-      // Nome do produto
       const productName =
         order["SKU Name"] || order["sku name"] || order.SKUName || "";
-
-      // Data de criação do pedido
       const creationDate =
         order["Creation Date"] ||
         order["creation date"] ||
         order.CreationDate ||
         "";
-      const orderDate = creationDate ? creationDate.split("T")[0] : ""; // Pega só a parte da data (YYYY-MM-DD)
+      const orderDate = creationDate ? creationDate.split("T")[0] : "";
 
       if (costInfo && saleValue > 0 && costValue > 0) {
-        // Calcular para todos os multiplicadores
-        const pointsCalculations = POINTS_OPTIONS.map((multiplier) => {
-          const totalPoints = saleValue * multiplier * quantity;
-          const pointsCost = totalPoints * POINT_COST;
-          const grossProfit = (saleValue - costValue) * quantity;
-          const netProfit = grossProfit - pointsCost;
-          const profitMargin = (netProfit / (saleValue * quantity)) * 100;
+        const pointsCalculations = showCustomInput
+          ? [customPointsMultiplier].map((multiplier) => {
+              const totalPoints = saleValue * multiplier * quantity;
+              const pointsCost = totalPoints * POINT_COST;
+              const grossProfit = (saleValue - costValue) * quantity;
+              const netProfit = grossProfit - pointsCost;
+              const profitMargin = (netProfit / (saleValue * quantity)) * 100;
 
-          return {
-            multiplier,
-            totalPoints,
-            pointsCost,
-            grossProfit,
-            netProfit,
-            profitMargin,
-          };
-        });
+              return {
+                multiplier,
+                totalPoints,
+                pointsCost,
+                grossProfit,
+                netProfit,
+                profitMargin,
+              };
+            })
+          : [3, 6, 8, 10].map((multiplier) => {
+              const totalPoints = saleValue * multiplier * quantity;
+              const pointsCost = totalPoints * POINT_COST;
+              const grossProfit = (saleValue - costValue) * quantity;
+              const netProfit = grossProfit - pointsCost;
+              const profitMargin = (netProfit / (saleValue * quantity)) * 100;
+
+              return {
+                multiplier,
+                totalPoints,
+                pointsCost,
+                grossProfit,
+                netProfit,
+                profitMargin,
+              };
+            });
 
         const item = {
           orderNumber,
@@ -213,7 +216,6 @@ const LiveloPointsCalculator = () => {
 
         results.push(item);
 
-        // Agrupar por pedido para summary
         if (!orderSummariesTemp[orderNumber]) {
           orderSummariesTemp[orderNumber] = {
             orderNumber,
@@ -232,25 +234,43 @@ const LiveloPointsCalculator = () => {
       }
     });
 
-    // Calcular resumos por pedido
     const orderSummariesArray = Object.values(orderSummariesTemp).map(
       (orderSummary) => {
-        const pointsCalculations = POINTS_OPTIONS.map((multiplier) => {
-          const totalPoints = orderSummary.totalSales * multiplier;
-          const pointsCost = totalPoints * POINT_COST;
-          const grossProfit = orderSummary.totalSales - orderSummary.totalCosts;
-          const netProfit = grossProfit - pointsCost;
-          const profitMargin = (netProfit / orderSummary.totalSales) * 100;
+        const pointsCalculations = showCustomInput
+          ? [customPointsMultiplier].map((multiplier) => {
+              const totalPoints = orderSummary.totalSales * multiplier;
+              const pointsCost = totalPoints * POINT_COST;
+              const grossProfit =
+                orderSummary.totalSales - orderSummary.totalCosts;
+              const netProfit = grossProfit - pointsCost;
+              const profitMargin = (netProfit / orderSummary.totalSales) * 100;
 
-          return {
-            multiplier,
-            totalPoints,
-            pointsCost,
-            grossProfit,
-            netProfit,
-            profitMargin,
-          };
-        });
+              return {
+                multiplier,
+                totalPoints,
+                pointsCost,
+                grossProfit,
+                netProfit,
+                profitMargin,
+              };
+            })
+          : [3, 6, 8, 10].map((multiplier) => {
+              const totalPoints = orderSummary.totalSales * multiplier;
+              const pointsCost = totalPoints * POINT_COST;
+              const grossProfit =
+                orderSummary.totalSales - orderSummary.totalCosts;
+              const netProfit = grossProfit - pointsCost;
+              const profitMargin = (netProfit / orderSummary.totalSales) * 100;
+
+              return {
+                multiplier,
+                totalPoints,
+                pointsCost,
+                grossProfit,
+                netProfit,
+                profitMargin,
+              };
+            });
 
         return {
           ...orderSummary,
@@ -261,7 +281,7 @@ const LiveloPointsCalculator = () => {
 
     setCalculations(results);
     setOrderSummaries(orderSummariesArray);
-  }, [vtexData, costData]);
+  }, [vtexData, costData, showCustomInput, customPointsMultiplier]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -275,8 +295,13 @@ const LiveloPointsCalculator = () => {
   };
 
   const getSelectedCalculation = (item) => {
-    return item.pointsCalculations.find(
-      (calc) => calc.multiplier === selectedPointsMultiplier
+    const targetMultiplier = showCustomInput
+      ? customPointsMultiplier
+      : selectedPointsMultiplier;
+    return (
+      item.pointsCalculations.find(
+        (calc) => calc.multiplier === targetMultiplier
+      ) || item.pointsCalculations[0]
     );
   };
 
@@ -338,7 +363,6 @@ const LiveloPointsCalculator = () => {
 
     let filtered = orderSummaries;
 
-    // Filtro por número do pedido
     if (orderFilter) {
       filtered = filtered.filter((order) =>
         order.orderNumber
@@ -348,7 +372,6 @@ const LiveloPointsCalculator = () => {
       );
     }
 
-    // Filtro por range de datas
     if (startDateFilter || endDateFilter) {
       filtered = filtered.filter((order) => {
         if (!order.orderDate) return false;
@@ -598,21 +621,79 @@ const LiveloPointsCalculator = () => {
                 <TrendingUp className="h-6 w-6 text-purple-600" />
                 <span>Cenários de Pontuação</span>
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {POINTS_OPTIONS.map((points) => (
-                  <button
-                    key={points}
-                    onClick={() => setSelectedPointsMultiplier(points)}
-                    className={`p-4 rounded-xl font-semibold transition-all duration-200 ${
-                      selectedPointsMultiplier === points
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg transform scale-105"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {points} Pontos/R$
-                  </button>
-                ))}
+              <div className="flex items-center space-x-4 mb-6">
+                <button
+                  onClick={() => setShowCustomInput(false)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    !showCustomInput
+                      ? "bg-purple-600 text-white shadow-lg"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Opções Padrão
+                </button>
+                <button
+                  onClick={() => setShowCustomInput(true)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    showCustomInput
+                      ? "bg-purple-600 text-white shadow-lg"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Valor Customizado
+                </button>
               </div>
+
+              {/* Opções padrão ou input customizado */}
+              {!showCustomInput ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  {[3, 6, 8, 10].map((points) => (
+                    <button
+                      key={points}
+                      onClick={() => setSelectedPointsMultiplier(points)}
+                      className={`p-4 rounded-xl font-semibold transition-all duration-200 ${
+                        selectedPointsMultiplier === points
+                          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg transform scale-105"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {points} Pontos/R$
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Multiplicador de Pontos (Pontos por R$)
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="100"
+                      step="0.1"
+                      value={customPointsMultiplier}
+                      onChange={(e) =>
+                        setCustomPointsMultiplier(
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className="border border-gray-300 rounded-lg px-4 py-3 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-32"
+                      placeholder="Ex: 3.5"
+                    />
+                    <span className="text-gray-600 font-medium">Pontos/R$</span>
+                    <button
+                      onClick={calculatePoints}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                    >
+                      Recalcular
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Digite qualquer valor decimal (ex: 3.5, 7.2, 12.8)
+                  </p>
+                </div>
+              )}
 
               {/* Summary Cards */}
               {summary && (
@@ -709,7 +790,11 @@ const LiveloPointsCalculator = () => {
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col gap-4">
                   <h2 className="text-xl font-semibold text-gray-800">
-                    Análise por Pedido - {selectedPointsMultiplier} Pontos/R$
+                    Análise por Pedido -{" "}
+                    {showCustomInput
+                      ? customPointsMultiplier
+                      : selectedPointsMultiplier}{" "}
+                    Pontos/R$
                   </h2>
 
                   {/* Filtros em linha organizada */}
@@ -963,7 +1048,11 @@ const LiveloPointsCalculator = () => {
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  Detalhamento por SKU - {selectedPointsMultiplier} Pontos/R$
+                  Detalhamento por SKU -{" "}
+                  {showCustomInput
+                    ? customPointsMultiplier
+                    : selectedPointsMultiplier}{" "}
+                  Pontos/R$
                 </h2>
               </div>
               <div className="overflow-x-auto">
