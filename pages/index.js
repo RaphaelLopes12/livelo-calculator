@@ -174,6 +174,23 @@ const LiveloPointsCalculator = () => {
           0
       );
 
+      const skuTotalPrice = parseBrazilianFloat(
+        order["SKU Total Price"] ||
+          order["sku total price"] ||
+          order.SKUTotalPrice ||
+          0
+      );
+
+      const orderTotalValue = parseBrazilianFloat(
+        order["Total Value"] ||
+          order["total value"] ||
+          order.TotalValue ||
+          order["Payment Value"] ||
+          order["payment value"] ||
+          order.PaymentValue ||
+          0
+      );
+
       const shippingCostForThisSku =
         shippingValue === 0 ? shippingListPrice : 0;
 
@@ -221,6 +238,8 @@ const LiveloPointsCalculator = () => {
             totalCosts: 0,
             totalQuantity: 0,
             totalShippingCost: 0,
+            totalSkuPrice: 0,
+            orderRealValue: orderTotalValue,
           };
         }
 
@@ -229,6 +248,7 @@ const LiveloPointsCalculator = () => {
         orderSummariesTemp[orderNumber].totalQuantity += quantity;
         orderSummariesTemp[orderNumber].totalShippingCost +=
           shippingCostForThisSku;
+        orderSummariesTemp[orderNumber].totalSkuPrice += skuTotalPrice;
 
         const pointsCalculations = showCustomInput
           ? [customPointsMultiplier].map((multiplier) => {
@@ -299,6 +319,8 @@ const LiveloPointsCalculator = () => {
           shippingValue: shippingValue,
           shippingListPrice: shippingListPrice,
           skuShippingCost: shippingCostForThisSku,
+          skuTotalPrice: skuTotalPrice,
+          orderRealValue: orderTotalValue,
         };
 
         results.push(item);
@@ -419,6 +441,13 @@ const LiveloPointsCalculator = () => {
         ...new Set(filteredCalculations.map((item) => item.orderNumber)),
       ];
 
+      const totalRealValue = uniqueOrderNumbers.reduce((sum, orderNumber) => {
+        const orderItem = filteredCalculations.find(
+          (item) => item.orderNumber === orderNumber
+        );
+        return sum + (orderItem?.orderRealValue || 0);
+      }, 0);
+
       return filteredCalculations.reduce(
         (acc, item) => {
           const calc = getSelectedCalculation(item);
@@ -429,6 +458,8 @@ const LiveloPointsCalculator = () => {
             totalNetProfit: acc.totalNetProfit + calc.netProfit,
             totalPoints: acc.totalPoints + calc.totalPoints,
             totalShippingCost: acc.totalShippingCost + (calc.shippingCost || 0),
+            totalSkuPrice: acc.totalSkuPrice + (item.skuTotalPrice || 0),
+            totalRealValue: totalRealValue,
             totalOrders: uniqueOrderNumbers.length,
             totalSKUs: filteredCalculations.length,
           };
@@ -440,6 +471,8 @@ const LiveloPointsCalculator = () => {
           totalNetProfit: 0,
           totalPoints: 0,
           totalShippingCost: 0,
+          totalSkuPrice: 0,
+          totalRealValue: 0,
         }
       );
     }
@@ -447,6 +480,13 @@ const LiveloPointsCalculator = () => {
     const uniqueOrderNumbers = [
       ...new Set(calculations.map((item) => item.orderNumber)),
     ];
+
+    const totalRealValue = uniqueOrderNumbers.reduce((sum, orderNumber) => {
+      const orderItem = calculations.find(
+        (item) => item.orderNumber === orderNumber
+      );
+      return sum + (orderItem?.orderRealValue || 0);
+    }, 0);
 
     return calculations.reduce(
       (acc, item) => {
@@ -458,6 +498,8 @@ const LiveloPointsCalculator = () => {
           totalNetProfit: acc.totalNetProfit + calc.netProfit,
           totalPoints: acc.totalPoints + calc.totalPoints,
           totalShippingCost: acc.totalShippingCost + (calc.shippingCost || 0),
+          totalSkuPrice: acc.totalSkuPrice + (item.skuTotalPrice || 0),
+          totalRealValue: totalRealValue,
           totalOrders: uniqueOrderNumbers.length,
           totalSKUs: calculations.length,
         };
@@ -469,6 +511,8 @@ const LiveloPointsCalculator = () => {
         totalNetProfit: 0,
         totalPoints: 0,
         totalShippingCost: 0,
+        totalSkuPrice: 0,
+        totalRealValue: 0,
       }
     );
   };
@@ -961,11 +1005,12 @@ const LiveloPointsCalculator = () => {
                     <p className="text-lg xl:text-xl font-bold text-yellow-700 leading-tight">
                       {formatCurrency(
                         summary.totalOrders > 0
-                          ? summary.totalSales / summary.totalOrders
+                          ? summary.totalRealValue / summary.totalOrders
                           : 0
                       )}
                     </p>
                   </div>
+
                   <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-3 rounded-xl border border-orange-200">
                     <p className="text-orange-600 text-xs font-medium mb-1">
                       Total Pedidos{" "}
