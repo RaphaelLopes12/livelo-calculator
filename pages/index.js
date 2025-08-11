@@ -125,6 +125,26 @@ const LiveloPointsCalculator = () => {
     [processFile]
   );
 
+  const parseBrazilianFloat = (value) => {
+    if (!value || value === "") return 0;
+
+    let stringValue = value.toString();
+
+    stringValue = stringValue.trim();
+
+    if (typeof value === "number") return value;
+
+    if (stringValue.includes(",")) {
+      if (stringValue.includes(".") && stringValue.includes(",")) {
+        stringValue = stringValue.replace(/\./g, "").replace(",", ".");
+      } else if (stringValue.includes(",") && !stringValue.includes(".")) {
+        stringValue = stringValue.replace(",", ".");
+      }
+    }
+
+    return parseFloat(stringValue) || 0;
+  };
+
   const calculatePoints = useCallback(() => {
     if (vtexData.length === 0 || costData.length === 0) {
       alert("Por favor, carregue ambas as planilhas antes de calcular.");
@@ -133,30 +153,6 @@ const LiveloPointsCalculator = () => {
 
     const results = [];
     const orderSummariesTemp = {};
-    const shippingCostsByOrder = {};
-
-    vtexData.forEach((order) => {
-      const orderNumber = order["Order"] || order["order"] || order.Order || "";
-      const shippingValue = parseFloat(
-        order["Shipping Value"] ||
-          order["shipping value"] ||
-          order.ShippingValue ||
-          0
-      );
-      const shippingListPrice = parseFloat(
-        order["Shipping List Price"] ||
-          order["shipping list price"] ||
-          order.ShippingListPrice ||
-          0
-      );
-
-      if (shippingValue === 0 && shippingListPrice > 0) {
-        if (!shippingCostsByOrder[orderNumber]) {
-          shippingCostsByOrder[orderNumber] = 0;
-        }
-        shippingCostsByOrder[orderNumber] += shippingListPrice;
-      }
-    });
 
     vtexData.forEach((order) => {
       const orderNumber = order["Order"] || order["order"] || order.Order || "";
@@ -164,6 +160,22 @@ const LiveloPointsCalculator = () => {
         order["Reference Code"] ||
         order["reference code"] ||
         order.ReferenceCode;
+
+      const shippingValue = parseBrazilianFloat(
+        order["Shipping Value"] ||
+          order["shipping value"] ||
+          order.ShippingValue ||
+          0
+      );
+      const shippingListPrice = parseBrazilianFloat(
+        order["Shipping List Price"] ||
+          order["shipping list price"] ||
+          order.ShippingListPrice ||
+          0
+      );
+
+      const shippingCostForThisSku =
+        shippingValue === 0 ? shippingListPrice : 0;
 
       const costInfo = costData.find(
         (cost) =>
@@ -178,17 +190,18 @@ const LiveloPointsCalculator = () => {
         order["sku selling price"] ||
         order.SKUSellingPrice ||
         "";
-      const saleValue =
-        parseFloat(sellingPriceRaw.toString().replace(",", ".")) || 0;
-      const quantity = parseFloat(
+
+      const saleValue = parseBrazilianFloat(sellingPriceRaw);
+      const quantity = parseBrazilianFloat(
         order["Quantity_SKU"] || order["quantity_sku"] || order.QuantitySKU || 1
       );
-      const costValue = parseFloat(
+      const costValue = parseBrazilianFloat(
         costInfo?.["CUSTO PRODUTO"] ||
           costInfo?.["custo produto"] ||
           costInfo?.CustoProduto ||
           0
       );
+
       const productName =
         order["SKU Name"] || order["sku name"] || order.SKUName || "";
       const creationDate =
@@ -207,12 +220,15 @@ const LiveloPointsCalculator = () => {
             totalSales: 0,
             totalCosts: 0,
             totalQuantity: 0,
+            totalShippingCost: 0,
           };
         }
 
         orderSummariesTemp[orderNumber].totalSales += saleValue * quantity;
         orderSummariesTemp[orderNumber].totalCosts += costValue * quantity;
         orderSummariesTemp[orderNumber].totalQuantity += quantity;
+        orderSummariesTemp[orderNumber].totalShippingCost +=
+          shippingCostForThisSku;
 
         const pointsCalculations = showCustomInput
           ? [customPointsMultiplier].map((multiplier) => {
@@ -223,21 +239,12 @@ const LiveloPointsCalculator = () => {
               const discountAmount =
                 (saleValue * quantity * paymentDiscount) / 100;
 
-              const orderShippingCost = shippingCostsByOrder[orderNumber] || 0;
-              const itemSaleValue = saleValue * quantity;
-              const orderTotalSales =
-                orderSummariesTemp[orderNumber].totalSales;
-              const itemShippingCost =
-                orderTotalSales > 0
-                  ? (orderShippingCost * itemSaleValue) / orderTotalSales
-                  : 0;
-
               const netProfit =
                 grossProfit -
                 pointsCost -
                 taxAmount -
                 discountAmount -
-                itemShippingCost;
+                shippingCostForThisSku;
               const profitMargin = (netProfit / (saleValue * quantity)) * 100;
 
               return {
@@ -247,7 +254,7 @@ const LiveloPointsCalculator = () => {
                 grossProfit,
                 netProfit,
                 profitMargin,
-                shippingCost: itemShippingCost,
+                shippingCost: shippingCostForThisSku,
               };
             })
           : [3, 6, 8, 10].map((multiplier) => {
@@ -258,21 +265,12 @@ const LiveloPointsCalculator = () => {
               const discountAmount =
                 (saleValue * quantity * paymentDiscount) / 100;
 
-              const orderShippingCost = shippingCostsByOrder[orderNumber] || 0;
-              const itemSaleValue = saleValue * quantity;
-              const orderTotalSales =
-                orderSummariesTemp[orderNumber].totalSales;
-              const itemShippingCost =
-                orderTotalSales > 0
-                  ? (orderShippingCost * itemSaleValue) / orderTotalSales
-                  : 0;
-
               const netProfit =
                 grossProfit -
                 pointsCost -
                 taxAmount -
                 discountAmount -
-                itemShippingCost;
+                shippingCostForThisSku;
               const profitMargin = (netProfit / (saleValue * quantity)) * 100;
 
               return {
@@ -282,7 +280,7 @@ const LiveloPointsCalculator = () => {
                 grossProfit,
                 netProfit,
                 profitMargin,
-                shippingCost: itemShippingCost,
+                shippingCost: shippingCostForThisSku,
               };
             });
 
@@ -298,6 +296,9 @@ const LiveloPointsCalculator = () => {
           costValue: costValue * quantity,
           orderDate,
           pointsCalculations,
+          shippingValue: shippingValue,
+          shippingListPrice: shippingListPrice,
+          skuShippingCost: shippingCostForThisSku,
         };
 
         results.push(item);
@@ -307,9 +308,6 @@ const LiveloPointsCalculator = () => {
 
     const orderSummariesArray = Object.values(orderSummariesTemp).map(
       (orderSummary) => {
-        const orderShippingCost =
-          shippingCostsByOrder[orderSummary.orderNumber] || 0;
-
         const pointsCalculations = showCustomInput
           ? [customPointsMultiplier].map((multiplier) => {
               const totalPoints = orderSummary.totalSales * multiplier;
@@ -325,7 +323,7 @@ const LiveloPointsCalculator = () => {
                 pointsCost -
                 taxAmount -
                 discountAmount -
-                orderShippingCost;
+                orderSummary.totalShippingCost;
               const profitMargin = (netProfit / orderSummary.totalSales) * 100;
 
               return {
@@ -335,7 +333,7 @@ const LiveloPointsCalculator = () => {
                 grossProfit,
                 netProfit,
                 profitMargin,
-                shippingCost: orderShippingCost,
+                shippingCost: orderSummary.totalShippingCost,
               };
             })
           : [3, 6, 8, 10].map((multiplier) => {
@@ -352,7 +350,7 @@ const LiveloPointsCalculator = () => {
                 pointsCost -
                 taxAmount -
                 discountAmount -
-                orderShippingCost;
+                orderSummary.totalShippingCost;
               const profitMargin = (netProfit / orderSummary.totalSales) * 100;
 
               return {
@@ -362,14 +360,13 @@ const LiveloPointsCalculator = () => {
                 grossProfit,
                 netProfit,
                 profitMargin,
-                shippingCost: orderShippingCost,
+                shippingCost: orderSummary.totalShippingCost,
               };
             });
 
         return {
           ...orderSummary,
           pointsCalculations,
-          totalShippingCost: orderShippingCost,
         };
       }
     );
@@ -887,7 +884,7 @@ const LiveloPointsCalculator = () => {
 
               {/* Summary Cards */}
               {summary && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
                   <div className="bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-xl border border-green-200">
                     <p className="text-green-600 text-xs font-medium mb-1">
                       Total Vendas{" "}
@@ -952,6 +949,21 @@ const LiveloPointsCalculator = () => {
                     </p>
                     <p className="text-lg xl:text-xl font-bold text-indigo-700 leading-tight">
                       {formatCurrency(summary.totalNetProfit)}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-3 rounded-xl border border-yellow-200">
+                    <p className="text-yellow-600 text-xs font-medium mb-1">
+                      Ticket Médio{" "}
+                      {hasActiveFilters() && (
+                        <span className="text-xs">(Filtrado)</span>
+                      )}
+                    </p>
+                    <p className="text-lg xl:text-xl font-bold text-yellow-700 leading-tight">
+                      {formatCurrency(
+                        summary.totalOrders > 0
+                          ? summary.totalSales / summary.totalOrders
+                          : 0
+                      )}
                     </p>
                   </div>
                   <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-3 rounded-xl border border-orange-200">
@@ -1532,10 +1544,10 @@ const LiveloPointsCalculator = () => {
                             {formatCurrency(calc.pointsCost)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(calc.grossProfit)}
+                            {formatCurrency(calc.shippingCost || 0)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(calc.shippingCost || 0)}
+                            {formatCurrency(calc.grossProfit)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <span
